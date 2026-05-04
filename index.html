@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1a73e8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Portfel">
+  <title>Portfel — Budżet osobisty</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+</head>
+<body>
+
+<!-- ===== LOGIN SCREEN ===== -->
+<div id="screen-login" class="screen active">
+  <div class="login-logo">💰</div>
+  <h1 class="login-title">Portfel</h1>
+  <p class="login-sub">Twój budżet w jednym miejscu</p>
+  <button class="btn-google" id="btn-google-login">
+    <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+    Zaloguj się przez Google
+  </button>
+  <p class="login-footer">Twoje dane są zaszyfrowane i prywatne</p>
+</div>
+
+<!-- ===== APP SCREEN ===== -->
+<div id="screen-app" class="screen">
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <span class="app-logo">💰 Portfel</span>
+    <div class="header-right">
+      <div class="user-avatar" id="user-avatar">?</div>
+      <button class="btn-logout" id="btn-logout">Wyloguj</button>
+    </div>
+  </header>
+
+  <!-- PAGES -->
+
+  <!-- DASHBOARD PAGE -->
+  <div id="page-dashboard" class="page active">
+    <div class="dash-hero">
+      <div class="dash-month-nav">
+        <button id="dash-prev-month">‹</button>
+        <span class="dash-month-label" id="dash-month-label">Maj 2026</span>
+        <button id="dash-next-month">›</button>
+      </div>
+      <p class="dash-balance-label">Saldo miesiąca</p>
+      <p class="dash-balance" id="dash-balance">0,00 zł</p>
+      <div class="dash-cards">
+        <div class="dash-card income">
+          <div class="dash-card-label">📈 Przychody</div>
+          <div class="dash-card-val" id="dash-income">0,00 zł</div>
+        </div>
+        <div class="dash-card expense">
+          <div class="dash-card-label">📉 Koszty</div>
+          <div class="dash-card-val" id="dash-expense">0,00 zł</div>
+        </div>
+      </div>
+    </div>
+
+    <p class="dash-section-title">Szybkie dodawanie</p>
+    <div class="dash-quick">
+      <button class="btn-quick income" id="dash-add-income">📈 Dodaj przychód</button>
+      <button class="btn-quick expense" id="dash-add-expense">📉 Dodaj koszt</button>
+    </div>
+
+    <p class="dash-section-title">Wykres miesiąca</p>
+    <div class="dash-chart-wrap">
+      <canvas id="dash-chart"></canvas>
+    </div>
+
+    <p class="dash-section-title">Ostatnie transakcje</p>
+    <div class="transaction-list" id="dash-tx-list">
+      <div class="loader"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- HISTORY PAGE -->
+  <div id="page-history" class="page">
+    <div class="history-filters">
+      <select class="filter-select" id="hist-month-select"></select>
+      <select class="filter-select" id="hist-type-select">
+        <option value="all">Wszystkie</option>
+        <option value="income">Przychody</option>
+        <option value="expense">Koszty</option>
+      </select>
+      <select class="filter-select" id="hist-cat-select">
+        <option value="all">Kategoria</option>
+      </select>
+    </div>
+    <div class="history-summary">
+      <div class="hist-sum-card">
+        <div class="hist-sum-label">Przychody</div>
+        <div class="hist-sum-val income" id="hist-income-sum">0 zł</div>
+      </div>
+      <div class="hist-sum-card">
+        <div class="hist-sum-label">Koszty</div>
+        <div class="hist-sum-val expense" id="hist-expense-sum">0 zł</div>
+      </div>
+      <div class="hist-sum-card">
+        <div class="hist-sum-label">Saldo</div>
+        <div class="hist-sum-val balance" id="hist-balance-sum">0 zł</div>
+      </div>
+    </div>
+    <div class="transaction-list" id="hist-tx-list">
+      <div class="loader"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- STATS PAGE -->
+  <div id="page-stats" class="page">
+    <div class="stats-period">
+      <button class="period-btn active" data-period="month">Ten miesiąc</button>
+      <button class="period-btn" data-period="3m">3 miesiące</button>
+      <button class="period-btn" data-period="6m">6 miesięcy</button>
+      <button class="period-btn" data-period="year">Ten rok</button>
+      <button class="period-btn" data-period="all">Wszystko</button>
+    </div>
+
+    <div class="stats-totals">
+      <div class="stats-total">
+        <div class="stats-total-val income" id="stats-income-total">0 zł</div>
+        <div class="stats-total-label">Przychody</div>
+      </div>
+      <div class="stats-total">
+        <div class="stats-total-val expense" id="stats-expense-total">0 zł</div>
+        <div class="stats-total-label">Koszty</div>
+      </div>
+    </div>
+
+    <div class="stats-card">
+      <div class="stats-card-title">Przychody vs Koszty (miesiące)</div>
+      <div class="stats-chart-wrap">
+        <canvas id="stats-bar-chart"></canvas>
+      </div>
+    </div>
+
+    <div class="stats-card">
+      <div class="stats-card-title">Podział kosztów wg kategorii</div>
+      <div class="stats-chart-wrap" style="height:200px;">
+        <canvas id="stats-pie-expense"></canvas>
+      </div>
+    </div>
+
+    <div class="stats-card">
+      <div class="stats-card-title">Podział przychodów wg kategorii</div>
+      <div class="stats-chart-wrap" style="height:200px;">
+        <canvas id="stats-pie-income"></canvas>
+      </div>
+    </div>
+
+    <div class="stats-card">
+      <div class="stats-card-title">Top koszty</div>
+      <div class="cat-breakdown" id="stats-top-expense"></div>
+    </div>
+
+    <div class="stats-card">
+      <div class="stats-card-title">Top przychody</div>
+      <div class="cat-breakdown" id="stats-top-income"></div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-page="dashboard">
+      <span class="nav-icon">🏠</span>
+      <span>Dashboard</span>
+    </button>
+    <button class="nav-btn add-btn" id="nav-add-btn">
+      <div class="nav-icon-add">＋</div>
+      <span>Dodaj</span>
+    </button>
+    <button class="nav-btn" data-page="history">
+      <span class="nav-icon">📋</span>
+      <span>Historia</span>
+    </button>
+    <button class="nav-btn" data-page="stats">
+      <span class="nav-icon">📊</span>
+      <span>Statystyki</span>
+    </button>
+  </nav>
+
+</div><!-- end screen-app -->
+
+<!-- ===== ADD TRANSACTION MODAL ===== -->
+<div class="modal-overlay" id="add-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">Dodaj koszt</span>
+      <button class="btn-close-modal" id="btn-close-modal">✕</button>
+    </div>
+
+    <!-- Type toggle -->
+    <div class="type-toggle">
+      <button id="toggle-expense" class="active expense">📉 Koszt</button>
+      <button id="toggle-income">📈 Przychód</button>
+    </div>
+
+    <!-- Amount -->
+    <div class="amount-wrap">
+      <div class="amount-label">Kwota</div>
+      <div class="amount-input-row">
+        <span class="amount-currency">zł</span>
+        <input type="number" class="amount-input expense" id="tx-amount"
+               placeholder="0,00" min="0" step="0.01" inputmode="decimal">
+      </div>
+    </div>
+
+    <!-- Category -->
+    <div class="form-section">
+      <div class="form-label">Kategoria</div>
+      <div class="chips-wrap" id="cat-chips"></div>
+      <div class="custom-cat-wrap" id="custom-cat-wrap">
+        <input type="text" class="custom-cat-input" id="custom-cat-input" placeholder="Wpisz nazwę kategorii...">
+        <button class="btn-add-cat" id="btn-add-cat">Dodaj</button>
+      </div>
+    </div>
+
+    <!-- Payment method -->
+    <div class="form-section" id="payment-section">
+      <div class="form-label">Metoda płatności</div>
+      <div class="chips-wrap" id="payment-chips"></div>
+    </div>
+
+    <!-- Date -->
+    <div class="form-section">
+      <div class="form-label">Data</div>
+      <input type="date" class="date-input" id="tx-date">
+    </div>
+
+    <!-- Note -->
+    <div class="form-section">
+      <div class="form-label">Notatka (opcjonalnie)</div>
+      <textarea class="note-input" id="tx-note" placeholder="np. tankowanie przed wyjazdem..."></textarea>
+    </div>
+
+    <button class="btn-submit expense" id="btn-submit">Zapisz koszt</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- Firebase compat SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<!-- Firebase config (uzupełnij!) -->
+<script src="firebase-config.js"></script>
+
+<!-- App -->
+<script src="app.js"></script>
+</body>
+</html>

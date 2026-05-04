@@ -1,0 +1,16 @@
+{
+  "name": "Portfel — Budżet osobisty",
+  "short_name": "Portfel",
+  "description": "Aplikacja do zarządzania budżetem osobistym",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080810",
+  "theme_color": "#1a73e8",
+  "orientation": "portrait",
+  "lang": "pl",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
