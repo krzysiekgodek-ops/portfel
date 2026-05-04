@@ -56,22 +56,37 @@ let dashChart = null, statsBarChart = null, statsPieExpense = null, statsPieInco
 // ===== FIREBASE INIT =====
 function initFirebase() {
   try {
-    firebase.initializeApp(firebaseConfig);
-    db   = firebase.firestore();
-    auth = firebase.auth();
+    firebase.initializeApp(firebaseConfig); // Inicjalizacja z Twoją konfiguracją
+    db = firebase.firestore();
+    
+    // --- DODAJ TO TUTAJ: Włączanie obsługi Offline ---
+    db.enablePersistence()
+      .catch((err) => {
+        if (err.code == 'failed-precondition') {
+          // Może się zdarzyć, jeśli masz otwartych wiele kart z tą aplikacją jednocześnie.
+          // Tylko jedna karta może mieć aktywny tryb offline w danym momencie.
+          console.warn('Obsługa offline nie powiodła się: Otwarto wiele kart.');
+        } else if (err.code == 'unimplemented') {
+          // Bardzo stare przeglądarki mogą nie wspierać tej funkcji.
+          console.warn('Twoja przeglądarka nie wspiera trybu offline w Firestore.');
+        }
+      });
+    // -------------------------------------------------
 
-    auth.onAuthStateChanged(user => {
+    auth = firebase.auth(); //
+
+    auth.onAuthStateChanged(user => { // Reakcja na zmianę stanu zalogowania
       if (user) {
-        currentUser = user;
-        showApp(user);
-        loadData();
+        currentUser = user; //
+        showApp(user); //
+        loadData(); // Pobieranie danych z bazy (teraz również z lokalnej pamięci)
       } else {
-        currentUser = null;
-        showLogin();
+        currentUser = null; //
+        showLogin(); //
       }
     });
   } catch (e) {
-    showToast('❌ Błąd konfiguracji Firebase. Sprawdź firebase-config.js', 'error');
+    showToast('❌ Błąd konfiguracji Firebase. Sprawdź firebase-config.js', 'error'); //
     console.error(e);
   }
 }
