@@ -40,6 +40,17 @@ const PAYMENT_METHODS = {
 const MONTHS_PL = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec',
                    'Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
 
+function splitCatLabel(label) {
+  const firstChar = [...label][0];
+  if (firstChar && firstChar.codePointAt(0) > 0x2000) {
+    const spaceIdx = label.indexOf(' ');
+    if (spaceIdx > 0) return { icon: label.slice(0, spaceIdx), text: label.slice(spaceIdx + 1) };
+  }
+  return { icon: '📁', text: label };
+}
+
+function emptyState(msg) { return `<div class="empty-state">${msg}</div>`; }
+
 // ===== STATE =====
 let db, auth;
 let currentUser = null;
@@ -368,8 +379,18 @@ function updateModalType() {
 function renderCategoryChips() {
   const all = [...BUILT_IN[addType], ...customCategories[addType].map(c => ({ id: c, label: c }))];
   const wrap = document.getElementById('cat-chips');
-  wrap.innerHTML = all.map(c => `<button class="chip ${selectedCategory === c.label ? 'selected ' + addType : ''}" data-cat="${c.label}">${c.label}</button>`).join('') + `<button class="chip add-custom" id="chip-add-custom">＋ Własna</button>`;
-  wrap.querySelectorAll('.chip[data-cat]').forEach(btn => btn.addEventListener('click', () => { selectedCategory = btn.dataset.cat; renderCategoryChips(); }));
+  wrap.innerHTML = all.map(c => {
+    const { icon, text } = splitCatLabel(c.label);
+    const sel = selectedCategory === c.label ? 'selected ' + addType : '';
+    return `<button class="cat-grid-btn ${sel}" data-cat="${c.label}">
+      <span class="cat-grid-icon">${icon}</span>
+      <span class="cat-grid-label">${text}</span>
+    </button>`;
+  }).join('') + `<button class="cat-grid-btn add-custom" id="chip-add-custom">
+    <span class="cat-grid-icon">＋</span>
+    <span class="cat-grid-label">Własna</span>
+  </button>`;
+  wrap.querySelectorAll('.cat-grid-btn[data-cat]').forEach(btn => btn.addEventListener('click', () => { selectedCategory = btn.dataset.cat; renderCategoryChips(); }));
   document.getElementById('chip-add-custom').addEventListener('click', () => document.getElementById('custom-cat-wrap').classList.toggle('show'));
 }
 
@@ -389,7 +410,7 @@ async function submitTransaction() {
 }
 
 function txForMonth(txs, y, m) { return txs.filter(t => { const d = new Date(t.date); return d.getFullYear() === y && d.getMonth() === m; }); }
-function filterByPeriod(txs, p) { const c = new Date(); if (p==='month') c.setDate(1); else if (p==='3m') c.setMonth(c.getMonth()-3); else if (p==='year') c.setMonth(0,1); else return txs; return txs.filter(t => new Date(t.date) >= c); }
+function filterByPeriod(txs, p) { const c = new Date(); if (p==='month') c.setDate(1); else if (p==='3m') c.setMonth(c.getMonth()-3); else if (p==='6m') c.setMonth(c.getMonth()-6); else if (p==='year') c.setMonth(0,1); else return txs; return txs.filter(t => new Date(t.date) >= c); }
 function sumType(txs, t) { return txs.filter(x => x.type === t).reduce((s, x) => s + x.amount, 0); }
 function fmt(n) { return n.toLocaleString('pl-PL', { minimumFractionDigits: 2 }) + ' zł'; }
 function fmtShort(n) { return n >= 1000 ? (n/1000).toFixed(1) + 'k' : Math.round(n); }
@@ -415,6 +436,39 @@ function bindEvents() {
   document.getElementById('btn-close-modal').addEventListener('click', () => document.getElementById('add-modal').classList.remove('open'));
   document.getElementById('dash-add-income').addEventListener('click', () => openAddModal('income'));
   document.getElementById('dash-add-expense').addEventListener('click', () => openAddModal('expense'));
+
+  document.getElementById('dash-prev-month').addEventListener('click', () => {
+    dashMonth--; if (dashMonth < 0) { dashMonth = 11; dashYear--; }
+    renderDashboard();
+  });
+  document.getElementById('dash-next-month').addEventListener('click', () => {
+    dashMonth++; if (dashMonth > 11) { dashMonth = 0; dashYear++; }
+    renderDashboard();
+  });
+
+  document.getElementById('hist-month-select').addEventListener('change', function() {
+    const [y, m] = this.value.split('-');
+    histYear = parseInt(y); histMonth = parseInt(m);
+    renderHistory();
+  });
+  document.getElementById('hist-type-select').addEventListener('change', () => renderHistory());
+  document.getElementById('hist-cat-select').addEventListener('change', () => renderHistory());
+
+  document.querySelectorAll('.period-btn').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    statsPeriod = btn.dataset.period;
+    renderStats();
+  }));
+
+  document.getElementById('btn-add-cat').addEventListener('click', async () => {
+    const input = document.getElementById('custom-cat-input');
+    if (!input.value.trim()) return;
+    await saveCustomCategory(addType, input.value);
+    input.value = '';
+    document.getElementById('custom-cat-wrap').classList.remove('show');
+    renderCategoryChips();
+  });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
