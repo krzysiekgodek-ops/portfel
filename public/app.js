@@ -1,7 +1,23 @@
 /* ============================================================
    PORTFEL — Aplikacja budżetowa PWA (Zaktualizowana)
    ============================================================ */
+// Register Service Worker for PWA
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js')
+    .then(reg => console.log('✅ SW registered:', reg))
+    .catch(err => console.error('❌ SW registration failed:', err));
+}
 
+// Prompt installation on supported browsers
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Pokaż button "Zainstaluj" (opcjonalnie)
+  console.log('📲 Install prompt available');
+});
+
+// Rest of your app.js...
 // ===== KONFIGURACJA KATEGORII =====
 const BUILT_IN = {
   income: [
