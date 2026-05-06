@@ -12,6 +12,20 @@ body {
 button { cursor: pointer; font-family: inherit; border: none; outline: none; }
 input, textarea, select { font-family: inherit; outline: none; border: none; }
 
+/* Styl dla napisu zamiast przełącznika w modal-sheet */
+.modal-msg-container {
+  text-align: center;
+  padding: 0 16px 20px;
+}
+#modal-msg {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.msg-expense { color: var(--red-lt); } /* Kolor czerwony dla kosztu */
+.msg-income { color: var(--blue-lt); }  /* Kolor niebieski dla przychodu */
+
+
 /* ===== CSS VARIABLES ===== */
 :root {
   --bg:        #080810;

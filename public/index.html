@@ -176,7 +176,9 @@
     </button>
   </nav>
 
-</div><div class="modal-overlay" id="add-modal">
+</div>
+
+<div class="modal-overlay" id="add-modal">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
     <div class="modal-header">
@@ -184,9 +186,8 @@
       <button class="btn-close-modal" id="btn-close-modal">✕</button>
     </div>
 
-    <div class="type-toggle">
-      <button id="toggle-expense" class="active expense">📉 Koszt</button>
-      <button id="toggle-income">📈 Przychód</button>
+    <div class="modal-msg-container">
+      <p id="modal-msg"></p>
     </div>
 
     <div class="amount-wrap">
@@ -194,7 +195,7 @@
       <div class="amount-input-row">
         <span class="amount-currency">zł</span>
         <input type="number" class="amount-input expense" id="tx-amount"
-               placeholder="0,00" min="0" max="999999.99" step="0.01" inputmode="decimal">
+               placeholder="0,00" min="0" max="9999.99" step="0.01" inputmode="decimal">
       </div>
     </div>
 
@@ -231,11 +232,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-
 <script src="firebase-config.js"></script>
-
 <script src="app.js"></script>
 </body>
 </html>

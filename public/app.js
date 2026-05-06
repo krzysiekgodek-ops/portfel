@@ -1,20 +1,12 @@
 /* ============================================================
-   PORTFEL — Aplikacja budżetowa PWA (Zaktualizowana)
+   PORTFEL — Aplikacja budżetowa PWA
    ============================================================ */
-// Register Service Worker for PWA
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js')
     .then(reg => console.log('✅ SW registered:', reg))
     .catch(err => console.error('❌ SW registration failed:', err));
 }
-
-// Prompt installation on supported browsers
-let deferredPrompt;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  console.log('📲 Install prompt available');
-});
 
 // ===== KONFIGURACJA KATEGORII =====
 const BUILT_IN = {
@@ -37,17 +29,17 @@ const BUILT_IN = {
   ]
 };
 
+// Zaktualizowane Metody Płatności (uproszczone do 3)
 const PAYMENT_METHODS = {
   income: [
-    { id: 'przelew',  label: '🏦 Przelew' },
-    { id: 'gotowka',  label: '💵 Gotówka' },
     { id: 'karta',    label: '💳 Karta' },
+    { id: 'gotowka',  label: '💵 Gotówka' },
+    { id: 'przelew',  label: '🏦 Przelew' }
   ],
   expense: [
-    { id: 'karta',          label: '💳 Karta debetowa' },
-    { id: 'karta_kredyt',   label: '💳 Karta kredytowa' },
-    { id: 'gotowka',        label: '💵 Gotówka' },
-    { id: 'przelew',        label: '🏦 Przelew' },
+    { id: 'karta',    label: '💳 Karta' },
+    { id: 'gotowka',  label: '💵 Gotówka' },
+    { id: 'przelew',  label: '🏦 Przelew' }
   ]
 };
 
@@ -78,24 +70,12 @@ let selectedPayment = null;
 let statsPeriod = 'month';
 let dashChart = null, statsBarChart = null, statsPieExpense = null, statsPieIncome = null;
 
-// ===== FIREBASE INIT =====
 function initFirebase() {
   try {
     firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
-    
-    // --- OBSŁUGA OFFLINE ---
-    db.enablePersistence()
-      .catch((err) => {
-        if (err.code == 'failed-precondition') {
-          console.warn('Obsługa offline: Otwarto wiele kart.');
-        } else if (err.code == 'unimplemented') {
-          console.warn('Przeglądarka nie wspiera trybu offline.');
-        }
-      });
-
+    db.enablePersistence().catch(err => console.warn('Offline error:', err.code));
     auth = firebase.auth();
-
     auth.onAuthStateChanged(user => {
       if (user) {
         currentUser = user;
@@ -108,16 +88,12 @@ function initFirebase() {
     });
   } catch (e) {
     showToast('❌ Błąd konfiguracji Firebase', 'error');
-    console.error(e);
   }
 }
 
-// ===== AUTH =====
 function signInGoogle() {
   const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(provider).catch(err => {
-    showToast('Błąd logowania: ' + err.message, 'error');
-  });
+  auth.signInWithPopup(provider).catch(err => showToast('Błąd logowania', 'error'));
 }
 
 function logout() { auth.signOut(); }
@@ -131,14 +107,10 @@ function showApp(user) {
   document.getElementById('screen-login').classList.remove('active');
   document.getElementById('screen-app').classList.add('active');
   const avatar = document.getElementById('user-avatar');
-  if (user.photoURL) {
-    avatar.innerHTML = `<img src="${user.photoURL}" alt="avatar">`;
-  } else {
-    avatar.textContent = (user.displayName || user.email || '?')[0].toUpperCase();
-  }
+  if (user.photoURL) avatar.innerHTML = `<img src="${user.photoURL}">`;
+  else avatar.textContent = (user.displayName || user.email || '?')[0].toUpperCase();
 }
 
-// ===== DATA =====
 async function loadData() {
   if (!currentUser) return;
   try {
@@ -182,7 +154,6 @@ async function saveCustomCategory(type, name) {
   });
 }
 
-// ===== NAVIGATION =====
 function showPage(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-btn[data-page]').forEach(b => b.classList.remove('active'));
@@ -190,7 +161,6 @@ function showPage(page) {
   document.querySelector(`.nav-btn[data-page="${page}"]`)?.classList.add('active');
 }
 
-// ===== DASHBOARD =====
 function initDashDate() {
   const now = new Date();
   dashMonth = now.getMonth();
@@ -250,7 +220,6 @@ function renderDashChart() {
   });
 }
 
-// ===== HISTORY =====
 function initHistFilters() {
   const sel = document.getElementById('hist-month-select');
   sel.innerHTML = '';
@@ -299,7 +268,6 @@ function renderHistory() {
   });
 }
 
-// ===== STATISTICS =====
 function renderStats() {
   const txs = filterByPeriod(allTransactions, statsPeriod);
   document.getElementById('stats-income-total').textContent  = fmt(sumType(txs, 'income'));
@@ -386,6 +354,12 @@ function updateModalType() {
   document.getElementById('modal-title').textContent = isExp ? '📉 Dodaj koszt' : '📈 Dodaj przychód';
   document.getElementById('btn-submit').className = `btn-submit ${addType}`;
   document.getElementById('btn-submit').textContent = isExp ? 'Zapisz koszt' : 'Zapisz przychód';
+  
+  // Zaktualizowany Napis zamiast przełącznika
+  const msgEl = document.getElementById('modal-msg');
+  msgEl.textContent = isExp ? '- przemyśl jeszcze raz :)' : 'Tak trzymaj!';
+  msgEl.className = isExp ? 'msg-expense' : 'msg-income';
+
   renderCategoryChips();
   renderPaymentChips();
 }
@@ -418,9 +392,9 @@ async function submitTransaction() {
   const amountRaw = document.getElementById('tx-amount').value.replace(',', '.');
   const amount = parseFloat(amountRaw);
   
-  // Zaktualizowano: Dodano limit 999 999.99
+  // Zaktualizowany limit kwoty do 9 999.99 (zmniejszony o 2 cyfry)
   if (!amount || amount <= 0) { showToast('Uzupełnij dane', 'error'); return; }
-  if (amount > 999999.99) { showToast('Max: 999 999,99 zł', 'error'); return; }
+  if (amount > 9999.99) { showToast('Max: 9 999,99 zł', 'error'); return; }
   
   if (!selectedCategory || !selectedPayment) { showToast('Uzupełnij dane', 'error'); return; }
   
@@ -458,11 +432,9 @@ function bindEvents() {
   document.getElementById('dash-add-income').addEventListener('click', () => openAddModal('income'));
   document.getElementById('dash-add-expense').addEventListener('click', () => openAddModal('expense'));
 
-  // Fizyczne ograniczenie wpisywanych znaków (max 9 znaków dla xxxxxx.xx)
+  // Zaktualizowane ograniczenie do 7 znaków (xxxx.xx)
   document.getElementById('tx-amount').addEventListener('input', (e) => {
-    if (e.target.value.length > 9) {
-      e.target.value = e.target.value.slice(0, 9);
-    }
+    if (e.target.value.length > 7) e.target.value = e.target.value.slice(0, 7);
   });
 
   document.getElementById('dash-prev-month').addEventListener('click', () => {
@@ -479,6 +451,7 @@ function bindEvents() {
     histYear = parseInt(y); histMonth = parseInt(m);
     renderHistory();
   });
+
   document.getElementById('hist-type-select').addEventListener('change', () => renderHistory());
   document.getElementById('hist-cat-select').addEventListener('change', () => renderHistory());
 
