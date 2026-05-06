@@ -15,7 +15,6 @@
 </head>
 <body>
 
-<!-- ===== LOGIN SCREEN ===== -->
 <div id="screen-login" class="screen active">
   <div class="login-logo">💰</div>
   <h1 class="login-title">Portfel</h1>
@@ -27,10 +26,8 @@
   <p class="login-footer">Twoje dane są zaszyfrowane i prywatne</p>
 </div>
 
-<!-- ===== APP SCREEN ===== -->
 <div id="screen-app" class="screen">
 
-  <!-- HEADER -->
   <header class="app-header">
     <span class="app-logo">💰 Portfel</span>
     <div class="header-right">
@@ -39,9 +36,6 @@
     </div>
   </header>
 
-  <!-- PAGES -->
-
-  <!-- DASHBOARD PAGE -->
   <div id="page-dashboard" class="page active">
     <div class="dash-hero">
       <div class="dash-month-nav">
@@ -80,7 +74,6 @@
     </div>
   </div>
 
-  <!-- HISTORY PAGE -->
   <div id="page-history" class="page">
     <div class="history-filters">
       <select class="filter-select" id="hist-month-select"></select>
@@ -112,7 +105,6 @@
     </div>
   </div>
 
-  <!-- STATS PAGE -->
   <div id="page-stats" class="page">
     <div class="stats-period">
       <button class="period-btn active" data-period="month">Ten miesiąc</button>
@@ -165,7 +157,6 @@
     </div>
   </div>
 
-  <!-- BOTTOM NAV -->
   <nav class="bottom-nav">
     <button class="nav-btn active" data-page="dashboard">
       <span class="nav-icon">🏠</span>
@@ -185,10 +176,7 @@
     </button>
   </nav>
 
-</div><!-- end screen-app -->
-
-<!-- ===== ADD TRANSACTION MODAL ===== -->
-<div class="modal-overlay" id="add-modal">
+</div><div class="modal-overlay" id="add-modal">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
     <div class="modal-header">
@@ -196,23 +184,20 @@
       <button class="btn-close-modal" id="btn-close-modal">✕</button>
     </div>
 
-    <!-- Type toggle -->
     <div class="type-toggle">
       <button id="toggle-expense" class="active expense">📉 Koszt</button>
       <button id="toggle-income">📈 Przychód</button>
     </div>
 
-    <!-- Amount -->
     <div class="amount-wrap">
       <div class="amount-label">Kwota</div>
       <div class="amount-input-row">
         <span class="amount-currency">zł</span>
         <input type="number" class="amount-input expense" id="tx-amount"
-               placeholder="0,00" min="0" step="0.01" inputmode="decimal">
+               placeholder="0,00" min="0" max="999999.99" step="0.01" inputmode="decimal">
       </div>
     </div>
 
-    <!-- Category -->
     <div class="form-section">
       <div class="form-label">Kategoria</div>
       <div class="chips-wrap" id="cat-chips"></div>
@@ -222,19 +207,16 @@
       </div>
     </div>
 
-    <!-- Payment method -->
     <div class="form-section" id="payment-section">
       <div class="form-label">Metoda płatności</div>
       <div class="chips-wrap" id="payment-chips"></div>
     </div>
 
-    <!-- Date -->
     <div class="form-section">
       <div class="form-label">Data</div>
       <input type="date" class="date-input" id="tx-date">
     </div>
 
-    <!-- Note -->
     <div class="form-section">
       <div class="form-label">Notatka (opcjonalnie)</div>
       <textarea class="note-input" id="tx-note" placeholder="np. tankowanie przed wyjazdem..."></textarea>
@@ -244,21 +226,16 @@
   </div>
 </div>
 
-<!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<!-- Firebase compat SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
-<!-- Chart.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
-<!-- Firebase config (uzupełnij!) -->
 <script src="firebase-config.js"></script>
 
-<!-- App -->
 <script src="app.js"></script>
 </body>
 </html>

@@ -13,11 +13,9 @@ let deferredPrompt;
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  // Pokaż button "Zainstaluj" (opcjonalnie)
   console.log('📲 Install prompt available');
 });
 
-// Rest of your app.js...
 // ===== KONFIGURACJA KATEGORII =====
 const BUILT_IN = {
   income: [
@@ -417,8 +415,15 @@ function renderPaymentChips() {
 }
 
 async function submitTransaction() {
-  const amount = parseFloat(document.getElementById('tx-amount').value.replace(',', '.'));
-  if (!amount || amount <= 0 || !selectedCategory || !selectedPayment) { showToast('Uzupełnij dane', 'error'); return; }
+  const amountRaw = document.getElementById('tx-amount').value.replace(',', '.');
+  const amount = parseFloat(amountRaw);
+  
+  // Zaktualizowano: Dodano limit 999 999.99
+  if (!amount || amount <= 0) { showToast('Uzupełnij dane', 'error'); return; }
+  if (amount > 999999.99) { showToast('Max: 999 999,99 zł', 'error'); return; }
+  
+  if (!selectedCategory || !selectedPayment) { showToast('Uzupełnij dane', 'error'); return; }
+  
   const tx = { type: addType, amount, category: selectedCategory, paymentMethod: selectedPayment, date: document.getElementById('tx-date').value, note: document.getElementById('tx-note').value.trim(), createdAt: firebase.firestore.FieldValue.serverTimestamp() };
   await saveTransaction(tx);
   document.getElementById('add-modal').classList.remove('open');
@@ -452,6 +457,13 @@ function bindEvents() {
   document.getElementById('btn-close-modal').addEventListener('click', () => document.getElementById('add-modal').classList.remove('open'));
   document.getElementById('dash-add-income').addEventListener('click', () => openAddModal('income'));
   document.getElementById('dash-add-expense').addEventListener('click', () => openAddModal('expense'));
+
+  // Fizyczne ograniczenie wpisywanych znaków (max 9 znaków dla xxxxxx.xx)
+  document.getElementById('tx-amount').addEventListener('input', (e) => {
+    if (e.target.value.length > 9) {
+      e.target.value = e.target.value.slice(0, 9);
+    }
+  });
 
   document.getElementById('dash-prev-month').addEventListener('click', () => {
     dashMonth--; if (dashMonth < 0) { dashMonth = 11; dashYear--; }
