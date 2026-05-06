@@ -4,9 +4,11 @@ const STATIC_ASSETS = [
   '/index.html',
   '/styles.css',
   '/app.js',
-  '/icon.svg',
+  '/icon-192.png', // dodano
+  '/icon-512.png', // dodano
   '/manifest.json'
 ];
+
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
