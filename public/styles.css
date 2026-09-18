@@ -190,12 +190,14 @@ input, textarea, select { font-family: inherit; outline: none; border: none; }
 .tx-amount { font-size: 1rem; font-weight: 800; flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .tx-amount.income { color: var(--blue-lt); }
 .tx-amount.expense { color: var(--red-lt); }
-.tx-delete {
+.tx-delete, .tx-edit {
   background: none; color: var(--text3); font-size: 1rem;
-  min-height: 44px; min-width: 44px;
+  min-height: 44px; min-width: 40px;
   display: flex; align-items: center; justify-content: center;
   border-radius: 8px; flex-shrink: 0;
 }
+.tx-delete:active, .tx-edit:active { background: var(--surface3); }
+.tx-delete:disabled { opacity: .4; }
 
 /* ===== CHARTS ===== */
 .dash-chart-wrap { padding: 0 16px; height: 180px; position: relative; }
@@ -299,18 +301,6 @@ input, textarea, select { font-family: inherit; outline: none; border: none; }
   width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
   font-size: 0.9rem; border: 1px solid var(--border); flex-shrink: 0;
 }
-
-/* Type toggle */
-.type-toggle {
-  display: grid; grid-template-columns: 1fr 1fr;
-  margin: 0 16px 16px; background: var(--surface3); border-radius: 12px; overflow: hidden;
-}
-.type-toggle button {
-  padding: 0; font-size: 1rem; font-weight: 700;
-  color: var(--text3); background: none; min-height: 48px;
-}
-.type-toggle button.active.income { background: #0d1a3a; color: var(--blue-lt); }
-.type-toggle button.active.expense { background: #2b0d0d; color: var(--red-lt); }
 
 /* Amount */
 .amount-wrap { padding: 0 16px 16px; }
@@ -426,3 +416,21 @@ input, textarea, select { font-family: inherit; outline: none; border: none; }
 .toast.show { opacity: 1; }
 .toast.success { border: 1px solid var(--blue); }
 .toast.error { border: 1px solid var(--red); }
+
+/* ===== DESKTOP: wyśrodkowana kolumna zamiast rozciągniętego widoku mobilnego ===== */
+@media (min-width: 720px) {
+  #screen-app {
+    max-width: 560px; margin: 0 auto;
+    border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+  }
+  .bottom-nav {
+    max-width: 560px; left: 50%; right: auto;
+    transform: translateX(-50%); width: 100%;
+  }
+  .modal-overlay { align-items: center; }
+  .modal-sheet {
+    max-width: 560px; margin: 0 auto;
+    border-radius: 24px; max-height: 86vh;
+  }
+  .modal-handle { display: none; }
+}

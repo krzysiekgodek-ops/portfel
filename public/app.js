@@ -55,6 +55,11 @@ function splitCatLabel(label) {
   return { icon: '📁', text: label };
 }
 
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function emptyState(msg) { return `<div class="empty-state">${msg}</div>`; }
 
 // ===== STATE =====
@@ -65,6 +70,7 @@ let customCategories = { income: [], expense: [] };
 let dashMonth, dashYear;
 let histMonth, histYear;
 let addType = 'expense';
+let editingId = null;
 let selectedCategory = null;
 let selectedPayment = null;
 let statsPeriod = 'month';
@@ -74,7 +80,8 @@ function initFirebase() {
   try {
     firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
-    db.enablePersistence().catch(err => console.warn('Offline error:', err.code));
+    db.enablePersistence({ synchronizeTabs: true })
+      .catch(err => console.warn('Offline cache niedostępny:', err.code));
     auth = firebase.auth();
     auth.onAuthStateChanged(user => {
       if (user) {
@@ -107,7 +114,7 @@ function showApp(user) {
   document.getElementById('screen-login').classList.remove('active');
   document.getElementById('screen-app').classList.add('active');
   const avatar = document.getElementById('user-avatar');
-  if (user.photoURL) avatar.innerHTML = `<img src="${user.photoURL}">`;
+  if (user.photoURL) avatar.innerHTML = `<img src="${esc(user.photoURL)}" alt="">`;
   else avatar.textContent = (user.displayName || user.email || '?')[0].toUpperCase();
 }
 
@@ -126,31 +133,76 @@ async function loadData() {
       customCategories.expense = data.customExpense || [];
     }
 
-    renderDashboard();
-    renderHistory();
-    renderStats();
+    renderAll();
   } catch (e) {
     showToast('Błąd ładowania danych', 'error');
   }
 }
 
-async function saveTransaction(tx) {
-  await db.collection('users').doc(currentUser.uid).collection('transactions').add(tx);
-  await loadData();
+function renderAll() {
+  renderDashboard();
+  renderHistory();
+  renderStats();
 }
 
-async function deleteTransaction(id) {
-  await db.collection('users').doc(currentUser.uid).collection('transactions').doc(id).delete();
-  await loadData();
+function sortTransactions() {
+  allTransactions.sort((a, b) => String(b.date).localeCompare(String(a.date)));
 }
 
-async function saveCustomCategory(type, name) {
-  const trimmed = name.trim();
+function txCollection() {
+  return db.collection('users').doc(currentUser.uid).collection('transactions');
+}
+
+/* Zapis optymistyczny: lokalna tablica aktualizuje się od razu, a zapis leci w tle.
+   Firestore offline kolejkuje write i potwierdza go dopiero po odzyskaniu sieci —
+   czekanie na `await` zawieszałoby formularz bez zasięgu. Błąd = wycofanie zmiany. */
+function rollback(msg, restore) {
+  restore();
+  sortTransactions();
+  renderAll();
+  showToast(msg, 'error');
+}
+
+function saveTransaction(tx) {
+  const ref = txCollection().doc();
+  allTransactions.push({ ...tx, id: ref.id, createdAt: new Date() });
+  sortTransactions();
+  renderAll();
+  ref.set(tx).catch(() => rollback('Nie udało się zapisać transakcji',
+    () => { allTransactions = allTransactions.filter(t => t.id !== ref.id); }));
+}
+
+function updateTransaction(id, tx) {
+  const i = allTransactions.findIndex(t => t.id === id);
+  if (i === -1) return;
+  const before = { ...allTransactions[i] };
+  allTransactions[i] = { ...before, ...tx, updatedAt: new Date() };
+  sortTransactions();
+  renderAll();
+  txCollection().doc(id).update(tx).catch(() => rollback('Nie udało się zapisać zmian',
+    () => { allTransactions = allTransactions.map(t => t.id === id ? before : t); }));
+}
+
+function deleteTransaction(id) {
+  const before = allTransactions.find(t => t.id === id);
+  if (!before) return;
+  allTransactions = allTransactions.filter(t => t.id !== id);
+  renderAll();
+  txCollection().doc(id).delete().catch(() => rollback('Nie udało się usunąć transakcji',
+    () => { allTransactions.push(before); }));
+}
+
+function saveCustomCategory(type, name) {
+  const trimmed = name.trim().slice(0, 40);
   if (!trimmed || customCategories[type].includes(trimmed)) return;
   customCategories[type].push(trimmed);
-  await db.collection('users').doc(currentUser.uid).collection('settings').doc('categories').set({
+  db.collection('users').doc(currentUser.uid).collection('settings').doc('categories').set({
     customIncome:  customCategories.income,
     customExpense: customCategories.expense
+  }).catch(() => {
+    customCategories[type] = customCategories[type].filter(c => c !== trimmed);
+    renderCategoryChips();
+    showToast('Nie udało się zapisać kategorii', 'error');
   });
 }
 
@@ -238,32 +290,44 @@ function initHistFilters() {
 }
 
 function renderHistory() {
+  const monthTxs = txForMonth(allTransactions, histYear, histMonth);
+
+  // Lista kategorii budowana przed filtrowaniem, z zachowaniem wyboru użytkownika
+  const catSel  = document.getElementById('hist-cat-select');
+  const prevCat = catSel.value;
+  const cats    = [...new Set(monthTxs.map(t => t.category))];
+  catSel.innerHTML = '<option value="all">Kategoria</option>' +
+    cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  catSel.value = cats.includes(prevCat) ? prevCat : 'all';
+
   const typeFilter = document.getElementById('hist-type-select').value;
-  const catFilter  = document.getElementById('hist-cat-select').value;
-  let txs = txForMonth(allTransactions, histYear, histMonth);
+  const catFilter  = catSel.value;
+  let txs = monthTxs;
   if (typeFilter !== 'all') txs = txs.filter(t => t.type === typeFilter);
   if (catFilter !== 'all')  txs = txs.filter(t => t.category === catFilter);
 
-  const income  = sumType(txForMonth(allTransactions, histYear, histMonth), 'income');
-  const expense = sumType(txForMonth(allTransactions, histYear, histMonth), 'expense');
+  const income  = sumType(monthTxs, 'income');
+  const expense = sumType(monthTxs, 'expense');
   document.getElementById('hist-income-sum').textContent  = fmtShort(income);
   document.getElementById('hist-expense-sum').textContent = fmtShort(expense);
   document.getElementById('hist-balance-sum').textContent = fmtShort(income - expense);
 
-  const cats = [...new Set(txForMonth(allTransactions, histYear, histMonth).map(t => t.category))];
-  const catSel = document.getElementById('hist-cat-select');
-  catSel.innerHTML = '<option value="all">Kategoria</option>' +
-    cats.map(c => `<option value="${c}">${c}</option>`).join('');
-
   const listEl = document.getElementById('hist-tx-list');
   listEl.innerHTML = txs.length ? txs.map(t => txHtml(t, true)).join('') : emptyState('Brak transakcji');
 
+  listEl.querySelectorAll('.tx-edit').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tx = allTransactions.find(t => t.id === btn.dataset.id);
+      if (tx) openEditModal(tx);
+    });
+  });
+
   listEl.querySelectorAll('.tx-delete').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if (confirm('Usunąć tę transakcję?')) {
-        await deleteTransaction(btn.dataset.id);
-        showToast('Usunięto', 'success');
-      }
+    btn.addEventListener('click', () => {
+      if (!confirm('Usunąć tę transakcję?')) return;
+      btn.disabled = true;
+      deleteTransaction(btn.dataset.id);
+      showToast('Usunięto', 'success');
     });
   });
 }
@@ -282,8 +346,8 @@ function renderStats() {
 function renderStatsBarChart(txs) {
   const months = {};
   txs.forEach(t => {
-    const d = new Date(t.date);
-    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    const d = parseTxDate(t.date);
+    const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`;
     if (!months[key]) months[key] = { label: MONTHS_PL[d.getMonth()].substring(0,3), income: 0, expense: 0 };
     months[key][t.type] += t.amount;
   });
@@ -314,6 +378,8 @@ function renderStatsPie(type, txs) {
 
   const canvasId = type === 'expense' ? 'stats-pie-expense' : 'stats-pie-income';
   const ctx = document.getElementById(canvasId).getContext('2d');
+  const prev = type === 'expense' ? statsPieExpense : statsPieIncome;
+  if (prev) prev.destroy();
   const chart = new Chart(ctx, {
     type: 'doughnut',
     data: { labels, datasets: [{ data: labels.map(l => catMap[l]), backgroundColor: colors, borderWidth: 2, borderColor: '#10101e' }] },
@@ -331,7 +397,7 @@ function renderTopCategories(type, txs) {
   const el = document.getElementById(type === 'expense' ? 'stats-top-expense' : 'stats-top-income');
   el.innerHTML = sorted.map(([cat, amt]) => `
     <div class="cat-row">
-      <span class="cat-row-name">${cat}</span>
+      <span class="cat-row-name">${esc(cat)}</span>
       <div class="cat-row-bar-wrap">
         <div class="cat-row-bar ${type}" style="width:${Math.round(amt/max*100)}%"></div>
       </div>
@@ -340,20 +406,47 @@ function renderTopCategories(type, txs) {
 }
 
 // ===== MODAL & HELPERS =====
+function closeModal() {
+  editingId = null;
+  document.getElementById('add-modal').classList.remove('open');
+}
+
+function openEditModal(tx) {
+  editingId = tx.id;
+  addType = tx.type || 'expense';
+  selectedCategory = tx.category || null;
+  selectedPayment  = tx.paymentMethod || null;
+  document.getElementById('tx-amount').value = tx.amount != null ? tx.amount : '';
+  document.getElementById('tx-note').value = tx.note || '';
+  document.getElementById('custom-cat-input').value = '';
+  document.getElementById('custom-cat-wrap').classList.remove('show');
+  document.getElementById('tx-date').value = tx.date || todayISO();
+  updateModalType();
+  document.getElementById('add-modal').classList.add('open');
+}
+
 function openAddModal(type) {
+  editingId = null;
   addType = type || 'expense';
   selectedCategory = null; selectedPayment = null;
   document.getElementById('tx-amount').value = '';
-  document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('tx-note').value = '';
+  document.getElementById('custom-cat-input').value = '';
+  document.getElementById('custom-cat-wrap').classList.remove('show');
+  document.getElementById('tx-date').value = todayISO();
   updateModalType();
   document.getElementById('add-modal').classList.add('open');
 }
 
 function updateModalType() {
   const isExp = addType === 'expense';
-  document.getElementById('modal-title').textContent = isExp ? '📉 Dodaj koszt' : '📈 Dodaj przychód';
+  document.getElementById('modal-title').textContent = editingId
+    ? (isExp ? '✏️ Edytuj koszt' : '✏️ Edytuj przychód')
+    : (isExp ? '📉 Dodaj koszt' : '📈 Dodaj przychód');
   document.getElementById('btn-submit').className = `btn-submit ${addType}`;
-  document.getElementById('btn-submit').textContent = isExp ? 'Zapisz koszt' : 'Zapisz przychód';
+  document.getElementById('btn-submit').textContent = editingId
+    ? 'Zapisz zmiany'
+    : (isExp ? 'Zapisz koszt' : 'Zapisz przychód');
   
   // Zaktualizowany Napis zamiast przełącznika
   const msgEl = document.getElementById('modal-msg');
@@ -370,9 +463,9 @@ function renderCategoryChips() {
   wrap.innerHTML = all.map(c => {
     const { icon, text } = splitCatLabel(c.label);
     const sel = selectedCategory === c.label ? 'selected ' + addType : '';
-    return `<button class="cat-grid-btn ${sel}" data-cat="${c.label}">
-      <span class="cat-grid-icon">${icon}</span>
-      <span class="cat-grid-label">${text}</span>
+    return `<button class="cat-grid-btn ${sel}" data-cat="${esc(c.label)}">
+      <span class="cat-grid-icon">${esc(icon)}</span>
+      <span class="cat-grid-label">${esc(text)}</span>
     </button>`;
   }).join('') + `<button class="cat-grid-btn add-custom" id="chip-add-custom">
     <span class="cat-grid-icon">＋</span>
@@ -384,11 +477,11 @@ function renderCategoryChips() {
 
 function renderPaymentChips() {
   const wrap = document.getElementById('payment-chips');
-  wrap.innerHTML = PAYMENT_METHODS[addType].map(m => `<button class="chip ${selectedPayment === m.id ? 'selected neutral' : ''}" data-pay="${m.id}">${m.label}</button>`).join('');
+  wrap.innerHTML = PAYMENT_METHODS[addType].map(m => `<button class="chip ${selectedPayment === m.id ? 'selected neutral' : ''}" data-pay="${esc(m.id)}">${esc(m.label)}</button>`).join('');
   wrap.querySelectorAll('.chip[data-pay]').forEach(btn => btn.addEventListener('click', () => { selectedPayment = btn.dataset.pay; renderPaymentChips(); }));
 }
 
-async function submitTransaction() {
+function submitTransaction() {
   const amountRaw = document.getElementById('tx-amount').value.replace(',', '.');
   const amount = parseFloat(amountRaw);
   
@@ -398,25 +491,71 @@ async function submitTransaction() {
   
   if (!selectedCategory || !selectedPayment) { showToast('Uzupełnij dane', 'error'); return; }
   
-  const tx = { type: addType, amount, category: selectedCategory, paymentMethod: selectedPayment, date: document.getElementById('tx-date').value, note: document.getElementById('tx-note').value.trim(), createdAt: firebase.firestore.FieldValue.serverTimestamp() };
-  await saveTransaction(tx);
-  document.getElementById('add-modal').classList.remove('open');
-  showToast('Zapisano', 'success');
+  const tx = {
+    type: addType,
+    amount,
+    category: selectedCategory,
+    paymentMethod: selectedPayment,
+    date: document.getElementById('tx-date').value,
+    note: document.getElementById('tx-note').value.trim().slice(0, 500)
+  };
+
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+  try {
+    if (editingId) {
+      updateTransaction(editingId, { ...tx, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      showToast('Zaktualizowano', 'success');
+    } else {
+      saveTransaction({ ...tx, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+      showToast('Zapisano', 'success');
+    }
+    editingId = null;
+    closeModal();
+  } catch (e) {
+    showToast('Błąd zapisu — sprawdź połączenie', 'error');
+  } finally {
+    btn.disabled = false;
+  }
 }
 
-function txForMonth(txs, y, m) { return txs.filter(t => { const d = new Date(t.date); return d.getFullYear() === y && d.getMonth() === m; }); }
-function filterByPeriod(txs, p) { const c = new Date(); if (p==='month') c.setDate(1); else if (p==='3m') c.setMonth(c.getMonth()-3); else if (p==='6m') c.setMonth(c.getMonth()-6); else if (p==='year') c.setMonth(0,1); else return txs; return txs.filter(t => new Date(t.date) >= c); }
+function txForMonth(txs, y, m) { return txs.filter(t => { const d = parseTxDate(t.date); return d.getFullYear() === y && d.getMonth() === m; }); }
+function filterByPeriod(txs, p) {
+  if (p === 'all') return txs;
+  const c = new Date();
+  if (p === 'month')     c.setDate(1);
+  else if (p === '3m')   c.setMonth(c.getMonth() - 3);
+  else if (p === '6m')   c.setMonth(c.getMonth() - 6);
+  else if (p === 'year') c.setMonth(0, 1);
+  else return txs;
+  c.setHours(0, 0, 0, 0);
+  return txs.filter(t => parseTxDate(t.date) >= c);
+}
+
+// 'YYYY-MM-DD' jako data LOKALNA — new Date('2026-09-01') to północ UTC i potrafi cofnąć dzień
+function parseTxDate(s) {
+  const [y, m, d] = String(s || '').split('-').map(Number);
+  return (y && m && d) ? new Date(y, m - 1, d) : new Date(s);
+}
+
+function todayISO() {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+}
 function sumType(txs, t) { return txs.filter(x => x.type === t).reduce((s, x) => s + x.amount, 0); }
-function fmt(n) { return n.toLocaleString('pl-PL', { minimumFractionDigits: 2 }) + ' zł'; }
+function fmt(n) { return Number(n || 0).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' zł'; }
 function fmtShort(n) { return n >= 1000 ? (n/1000).toFixed(1) + 'k' : Math.round(n); }
 
 function txHtml(t, del) {
   const sign = t.type === 'income' ? '+' : '−';
+  const { icon, text } = splitCatLabel(t.category || '');
+  const meta = [t.date, t.note].filter(Boolean).join(' · ');
   return `<div class="transaction-item">
-    <div class="tx-icon ${t.type}">${t.category.split(' ')[0]}</div>
-    <div class="tx-info"><div class="tx-category">${t.category}</div><div class="tx-meta">${t.date} · ${t.note || ''}</div></div>
-    <div class="tx-amount ${t.type}">${sign}${fmt(t.amount)}</div>
-    ${del ? `<button class="tx-delete" data-id="${t.id}">🗑</button>` : ''}
+    <div class="tx-icon ${esc(t.type)}">${esc(icon)}</div>
+    <div class="tx-info"><div class="tx-category">${esc(text)}</div><div class="tx-meta">${esc(meta)}</div></div>
+    <div class="tx-amount ${esc(t.type)}">${sign}${fmt(t.amount)}</div>
+    ${del ? `<button class="tx-edit" data-id="${esc(t.id)}" aria-label="Edytuj transakcję">✏️</button>
+    <button class="tx-delete" data-id="${esc(t.id)}" aria-label="Usuń transakcję">🗑</button>` : ''}
   </div>`;
 }
 
@@ -428,7 +567,13 @@ function bindEvents() {
   document.querySelectorAll('.nav-btn[data-page]').forEach(b => b.addEventListener('click', () => showPage(b.dataset.page)));
   document.getElementById('nav-add-btn').addEventListener('click', () => openAddModal('expense'));
   document.getElementById('btn-submit').addEventListener('click', submitTransaction);
-  document.getElementById('btn-close-modal').addEventListener('click', () => document.getElementById('add-modal').classList.remove('open'));
+  document.getElementById('btn-close-modal').addEventListener('click', closeModal);
+  document.getElementById('add-modal').addEventListener('click', e => {
+    if (e.target.id === 'add-modal') closeModal();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+  });
   document.getElementById('dash-add-income').addEventListener('click', () => openAddModal('income'));
   document.getElementById('dash-add-expense').addEventListener('click', () => openAddModal('expense'));
 
@@ -462,13 +607,17 @@ function bindEvents() {
     renderStats();
   }));
 
-  document.getElementById('btn-add-cat').addEventListener('click', async () => {
+  const addCustomCategory = () => {
     const input = document.getElementById('custom-cat-input');
     if (!input.value.trim()) return;
-    await saveCustomCategory(addType, input.value);
+    saveCustomCategory(addType, input.value);
     input.value = '';
     document.getElementById('custom-cat-wrap').classList.remove('show');
     renderCategoryChips();
+  };
+  document.getElementById('btn-add-cat').addEventListener('click', addCustomCategory);
+  document.getElementById('custom-cat-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); addCustomCategory(); }
   });
 }
 

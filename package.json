@@ -1,5 +1,13 @@
 {
-  "dependencies": {
-    "firebase": "^12.12.1"
-  }
+  "name": "portfel",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PWA do zarzadzania budzetem osobistym (Firebase Hosting + Firestore)",
+  "scripts": {
+    "start": "firebase emulators:start --only hosting",
+    "deploy": "firebase deploy",
+    "deploy:rules": "firebase deploy --only firestore:rules",
+    "deploy:hosting": "firebase deploy --only hosting"
+  },
+  "license": "UNLICENSED"
 }

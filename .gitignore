@@ -5,3 +5,5 @@ firebase-debug.log*
 
 # Twój plik z notatkami
 info.md
+# Prywatne pliki (zdjecia, notatki)
+secret/
