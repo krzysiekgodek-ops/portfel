@@ -54,6 +54,16 @@ poleceniem `npm run deploy:rules`.
 1. **Reguły Firestore** — plik `firestore.rules` daje dostęp wyłącznie właścicielowi
    danych (`request.auth.uid == userId`). Po każdej zmianie: `npm run deploy:rules`.
 
+   Jeśli `firebase login` nie działa (na tej maszynie kończy się asercją libuv),
+   wklej treść `firestore.rules` ręcznie w
+   https://console.firebase.google.com/project/portfel-2506/firestore/rules
+   i kliknij **Publish**. Weryfikacja bez logowania — poniższe zapytanie musi
+   zwrócić `403 PERMISSION_DENIED`:
+
+   ```bash
+   curl "https://firestore.googleapis.com/v1/projects/portfel-2506/databases/(default)/documents/users?key=KLUCZ_Z_firebase-config.js"
+   ```
+
 2. **Ograniczenie klucza API** — klucz w `firebase-config.js` jest publiczny z
    założenia (tak działa Firebase web), ale warto go ograniczyć do własnych domen:
    - https://console.cloud.google.com/apis/credentials → projekt `portfel-2506`
